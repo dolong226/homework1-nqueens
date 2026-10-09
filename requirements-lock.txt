@@ -1,0 +1,7 @@
+# Exact versions used for the submitted experiments (Windows / Python 3.14.5).
+python-sat==1.9.dev2
+gurobipy==13.0.3
+cplex==22.2.0.1
+docplex==2.32.264
+ortools==9.15.6755
+matplotlib==3.11.2

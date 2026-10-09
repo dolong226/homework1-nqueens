@@ -1,0 +1,389 @@
+\documentclass[a4paper,fleqn]{cas-sc}
+\usepackage[numbers]{natbib}
+\usepackage{amsmath,amssymb,booktabs,graphicx}
+\usepackage{placeins}
+\newcommand{\AMO}{\mathrm{AMO}}
+\newcommand{\ALO}{\mathrm{ALO}}
+\newcommand{\EO}{\mathrm{EO}}
+% Render the email as text; the distributed class omits thumbnail assets.
+\ExplSyntaxOn
+\bool_gset_true:N \g_stm_nologo_bool
+\ExplSyntaxOff
+\begin{document}
+\let\WriteBookmarks\relax
+\let\printorcid\relax
+\shorttitle{SAT Encodings for N-Queens}
+\shortauthors{Do Duc Long}
+\title[mode=title]{Solving N-Queens with SAT: An Experimental Comparison of Cardinality Encodings and Exact Solvers}
+\author[1]{Do Duc Long}
+\ead{24021550@vnu.edu.vn}
+\affiliation[1]{organization={VNU University of Engineering and Technology},city={Hanoi},country={Vietnam}}
+\begin{abstract}
+This report implements an exact SAT solver for the standard N-queens puzzle
+and compares five at-most-one encodings: pairwise, binary, commander, recursive
+product, and sequential counter. A minimal formulation and a formulation with
+redundant column clauses are evaluated using PySAT. Four SAT backends are
+compared using a fixed encoding, followed by comparisons with IBM CPLEX CP
+Optimizer, IBM CPLEX MIP, Gurobi, and OR-Tools CP-SAT. The implementation uses
+the same problem semantics for every method, independently validates returned
+placements, and stores the raw solutions and experiment configurations.
+Experiments use fresh processes, one solver thread, three repetitions, and
+an enforced ten-second process deadline. Boards up to $512\times512$ are
+included to examine scaling. Results distinguish model construction and search
+from process startup and license acquisition, and account explicitly for
+timeouts. Commander/minimal achieves the lowest encoding PAR-2 (0.450 s).
+At $n=512$, CPLEX CP and both MIP baselines succeed in all repetitions,
+while reference SAT and CP-SAT reach the deadline.
+The study concerns finding one solution to the unconstrained puzzle;
+it does not measure counting or the NP-complete completion problem.
+\end{abstract}
+\begin{keywords}
+N-queens \sep SAT encoding \sep cardinality constraints \sep constraint programming \sep integer linear programming
+\end{keywords}
+\maketitle
+
+\section{Introduction}
+The N-queens puzzle asks for $n$ queens on an $n\times n$ chessboard such
+that no two queens attack each other. It provides a compact example of exact
+constraint solving: every row must contain a queen, while columns and
+diagonals must exclude conflicts. A Boolean placement model turns these
+requirements into cardinality constraints. Its runtime can depend on how
+those constraints are translated into conjunctive normal form (CNF), even
+when the resulting formulas have exactly the same board solutions.
+
+PySAT supplies a common interface to SAT engines and cardinality
+encoders~\cite{pysat,pysatcard}. This makes it possible to compare encoding
+choices without changing the application semantics. Constraint programming
+(CP) instead represents a queen by its column and expresses non-attacking
+conditions with global all-different constraints~\cite{ortools}. Integer
+linear programming (ILP) represents occupied squares with binary variables
+and linear equalities or inequalities. These alternative formulations allow
+a comparison between SAT and established exact solvers.
+
+The present work contributes (i) an executable SAT solver with five AMO
+encodings and two formulations, (ii) a semantic verification suite that
+checks complete projected solution sets on small boards, (iii) comparisons
+with four SAT backends and all four CP/ILP solvers required by Homework 1,
+and (iv) reproducible measurements, raw placements, figures, and this report.
+
+The standard puzzle has a solution for $n=1$ and every $n\ge4$, while $n=2$
+and $n=3$ are infeasible. Consequently, deciding existence in this particular
+family should not be called NP-complete. The N-queens completion problem,
+where some queens are fixed in advance, is a different problem and is
+NP-complete~\cite{gent}. Here the aim is to study the behavior of generic
+exact methods on the standard puzzle, rather than propose a new algorithm
+that supersedes explicit constructions.
+
+\section{Problem definition and baseline models}
+\subsection{Problem definition}
+Let $I=\{0,\ldots,n-1\}$. A placement is a vector $q=(q_0,\ldots,q_{n-1})$
+where $q_r\in I$ is the column of the queen in row $r$. It is feasible iff
+\begin{align}
+q_r&\ne q_s &&\forall r<s,\label{eq:column}\\*
+q_r-r&\ne q_s-s &&\forall r<s,\label{eq:down}\\*
+q_r+r&\ne q_s+s &&\forall r<s.\label{eq:up}
+\end{align}
+There is no optimization objective: the first feasible placement suffices.
+All models below describe precisely these placements. Figure~\ref{fig:board}
+shows a placement returned during the experiments. Rows and columns in the
+figure are labeled from one; source code and saved solutions use zero-based
+coordinates.
+\begin{figure}[pos=htbp]
+\centering\includegraphics[width=.34\linewidth]{figs/board.png}
+\caption{An independently validated solution of the $8\times8$ puzzle.
+Each dot denotes one queen; no two dots share a column or diagonal.}
+\label{fig:board}
+\end{figure}
+
+\subsection{Constraint programming}
+The CP formulation introduces $n$ integer variables $q_r\in I$ and the three
+global constraints
+\begin{align}
+\operatorname{AllDifferent}(q_0,\ldots,q_{n-1}),\\
+\operatorname{AllDifferent}(q_0,q_1+1,\ldots,q_{n-1}+n-1),\\
+\operatorname{AllDifferent}(q_0,q_1-1,\ldots,q_{n-1}-(n-1)).
+\end{align}
+The same expressions are supplied to CPLEX CP Optimizer through DOcplex~\cite{ibm} and
+to OR-Tools CP-SAT. The counts $n$ variables and three constraints refer to
+the user model; solver-internal expansion and presolve may add variables
+and constraints. In particular, CP-SAT is not a pure finite-domain CP engine:
+it combines SAT-based reasoning with other techniques. Its inclusion provides
+an exact baseline through a different modeling interface, rather than a
+disjoint category of algorithms.
+
+\subsection{Binary ILP formulation}
+Define $x_{rc}\in\{0,1\}$ for each $(r,c)\in I^2$. Let
+$D_d^- =\{(r,c):r-c=d\}$ and $D_s^+=\{(r,c):r+c=s\}$.
+The feasibility model is
+\begin{align}
+\sum_{c\in I}x_{rc}&=1 &&\forall r\in I,\\
+\sum_{r\in I}x_{rc}&=1 &&\forall c\in I,\\
+\sum_{(r,c)\in D_d^-}x_{rc}&\le1 &&\forall d:|D_d^-|\ge2,\\
+\sum_{(r,c)\in D_s^+}x_{rc}&\le1 &&\forall s:|D_s^+|\ge2.
+\end{align}
+The constant objective is zero. For $n\ge2$ there are $n^2$ binary variables
+and $6n-6$ linear constraints. Singleton diagonals need no constraint.
+Gurobi~\cite{gurobi} and CPLEX MIP receive the identical model, with one thread, an explicit
+seed, and the default presolve settings. No model receives symmetry-breaking
+constraints, a warm start, or a precomputed placement.
+
+\section{SAT encoding}
+\subsection{Board variables and formulations}
+The Boolean variable $x_{rc}$ means that square $(r,c)$ contains a queen and
+has DIMACS index $rn+c+1$. For a literal set $X$, define
+\begin{equation}
+\ALO(X)=\bigvee_{x\in X}x,\qquad
+\EO(X)=\ALO(X)\wedge\AMO(X).
+\end{equation}
+Write $R_r$, $C_c$, and $\mathcal D$ for row, column, and nonsingleton
+diagonal literal sets. The minimal formula is
+\begin{equation}
+F_{\min}=\bigwedge_r\EO(R_r)\ \wedge\
+\bigwedge_c\AMO(C_c)\ \wedge\
+\bigwedge_{D\in\mathcal D}\AMO(D).
+\end{equation}
+The extended formula adds column at-least-one clauses:
+\begin{equation}
+F_{\mathrm{ext}}=F_{\min}\wedge\bigwedge_c\ALO(C_c).
+\end{equation}
+Both formulas have exactly the same feasible board placements. Every model
+of $F_{\min}$ has exactly $n$ queens by row EO. Column AMO distributes these
+queens among $n$ columns with no repetition, so every column is occupied.
+Diagonal AMO then gives Equations~\eqref{eq:down}--\eqref{eq:up}. Conversely,
+every valid placement satisfies all constraints in both formulations, and
+the auxiliary variables of each correct AMO encoding can be extended to
+satisfy its CNF. The extended formula contains $n$ additional clauses and
+no additional variables. Although logically redundant, those clauses may
+change propagation and search.
+
+\subsection{Five at-most-one encodings}
+For $X=\{x_1,\ldots,x_k\}$, the implementations are as follows.
+
+\paragraph{Pairwise.} For every $i<j$, add $\neg x_i\vee\neg x_j$.
+This needs $\binom{k}{2}$ clauses and no auxiliary variables. It is implemented
+directly by enumerating pairs.
+
+\paragraph{Binary.} Introduce $\lceil\log_2 k\rceil$ bits and assign a distinct
+bit pattern to every literal. Each $x_i$ implies its pattern through binary
+clauses. Two true literals would force different values for some bit.
+The implementation uses PySAT's bitwise cardinality encoder~\cite{pysatcard}.
+
+\paragraph{Commander.} Partition literals into groups of at most three.
+For a group $G$ introduce $a_G$, add pairwise AMO within $G$, add
+$\neg x\vee a_G$ for $x\in G$, and add $\neg a_G\vee\bigvee_{x\in G}x$.
+Apply the construction recursively to the commanders~\cite{commander}.
+Groups with at most four literals are handled by pairwise encoding. The
+reverse implication prevents an unused commander from being true; it is
+included consistently in all experiments.
+
+\paragraph{Recursive product.} Arrange the $k$ literals in a
+$p\times q$ grid, with $p=\lceil\sqrt{k}\rceil$ and $q=\lceil k/p\rceil$.
+Introduce row indicators $u_i$ and column indicators $v_j$. A literal in
+position $(i,j)$ implies both $u_i$ and $v_j$. Encode AMO on the two
+indicator sets recursively, using pairwise constraints for sets of size
+at most four~\cite{product}. Distinct true literals must differ in a row or
+a column, contradicting one indicator AMO.
+
+\paragraph{Sequential counter.} PySAT supplies Sinz's sequential
+counter~\cite{sinz}. For $k\ge3$, it uses $k-1$ auxiliary variables and $3k-4$
+clauses for AMO. The clauses propagate prefix occupancy and exclude any
+later true literal once the prefix is occupied. PySAT simplifies the
+two-literal case to one binary clause.
+
+\begin{table}[pos=htbp]
+\centering
+\caption{Asymptotic size of one AMO constraint. Small-group shortcuts in the
+actual implementations can change exact counts.}
+\label{tab:amo}
+\begin{tabular}{lrr}\toprule
+Encoding & Auxiliary variables & Clauses\\\midrule
+Pairwise & 0 & $\binom{k}{2}$\\
+Binary & $\lceil\log_2 k\rceil$ & $k\lceil\log_2 k\rceil$\\
+Commander & $O(k)$ & $O(k)$\\
+Recursive product & $O(\sqrt{k})$ & $O(k)$\\
+Sequential counter & $k-1$ & $3k-4$ ($k\ge3$)\\\bottomrule
+\end{tabular}
+\end{table}
+
+There are $O(n)$ AMO groups with up to $n$ literals each. The complete
+pairwise CNF therefore has $\Theta(n^3)$ clauses; binary uses
+$O(n^2\log n)$, while commander, product, and sequential counter use
+$O(n^2)$. More precisely, pairwise $F_{\min}$ has
+\begin{equation}
+n+2n\binom n2+2\left(\binom n2+2\binom n3\right)
+=\frac{5n^3-6n^2+4n}{3}
+\end{equation}
+clauses for $n\ge2$. A compact formula is not sufficient to predict
+runtime: propagation and the resulting search trajectory also matter.
+
+\subsection{Implementation and correctness checks}
+The SAT encoder streams clauses into the chosen solver instead of retaining
+a second full Python copy of the formula. An export command produces
+standard DIMACS CNF for independent use. Decoding inspects only the first
+$n^2$ placement variables, so auxiliary assignments cannot create queens.
+Every SAT or CP/ILP solution passes a separate checker for length, domain,
+column uniqueness, and uniqueness of both diagonal indices.
+
+The semantic test suite enumerates every truth assignment for AMO groups
+of size zero through eleven, for both positive and negative literals. It
+then enumerates all projected N-queens solutions for $n=1,\ldots,8$ for all
+ten SAT configurations. Blocking clauses use only selected board squares,
+so distinct auxiliary assignments cannot be counted as distinct placements.
+The resulting solution sets are compared with an independent backtracking
+implementation, yielding counts $1,0,0,2,10,4,40,92$. Integration checks
+also confirm infeasibility at $n=3$ and a valid solution at $n=8$ for every
+CP/ILP backend. These tests verify semantic equivalence rather than only
+checking that the code runs.
+
+\section{Computational experiments}
+\subsection{Environment and protocol}
+All runs were performed on Windows 11 (build 26200), with an AMD Ryzen 7
+8845HS processor (16 logical processors), Python 3.14.5, PySAT 1.9.dev2,
+Gurobi 13.0.3, CPLEX Python package 22.2.0.1, DOcplex 2.32.264, and OR-Tools
+9.15.6755. CPLEX CP uses the CP Optimizer executable from Optimization
+Studio 22.2. The saved configuration files record these versions and the
+complete command parameters. Gurobi uses a working WLS license; CPLEX MIP
+was verified to accept models beyond the community-edition size limit.
+
+Each experiment runs sequentially in fresh child processes, with one
+solver thread and three repetitions. CP/ILP runs use seeds one through
+three. SAT backends retain their default parameters; their repetitions
+primarily measure timing variation and are not different randomized SAT
+seeds. Method order is rotated across repetitions. Every run has a hard
+ten-second deadline for the child process, including imports, license
+acquisition, construction, and solving. Exceeding this budget yields TO;
+it never implies infeasibility. The Windows harness also terminates child
+CP Optimizer processes on timeout. Recorded timeout duration includes
+termination and cleanup; operating-system delays can make this exceed the
+requested budget. Such records remain unfinished runs, regardless of the
+cleanup duration.
+
+Two timing measures are kept: process time, measured by the parent, and
+core time, equal to model construction plus solver execution. Gurobi WLS
+startup is recorded separately as setup time; it is included in process
+time but excluded from core time. The main comparison uses process time
+to reflect the budget actually enforced. Both timings are reported to
+avoid attributing all license and import overhead to search performance.
+Construction and solve times cannot be recovered when the process is
+killed before returning; these fields remain empty rather than fabricated.
+
+For successful configurations, per-size tables show the median of three
+process times. A cell TO $(s/3)$ means only $s$ of three runs finished.
+Aggregate rankings use PAR-2: a successful run contributes its process
+time, and an unfinished or erroneous run contributes twice the ten-second
+budget. This prevents fast successful subsets from hiding failures. The
+benchmark contains one standard board per size; repetitions are repeated
+measurements, not distinct instances or independent evidence of broad
+statistical significance.
+
+\subsection{Encoding and formulation comparison}
+The first experiment fixes CaDiCaL 1.9.5 and evaluates all five AMO
+encodings under both formulations at $n\in\{8,16,32,64,96,128\}$. It contains
+$6\times10\times3=180$ runs. Table~\ref{tab:encodings} includes exact variable
+and clause counts at $n=128$, recomputed from the encoder independently of
+whether a particular timed run finished. Figure~\ref{fig:encodings} shows
+PAR-2 by board size.
+\begin{table}[pos=htbp]
+\centering\small
+\caption{Encoding comparison over 18 runs per configuration. Structural
+counts refer to the $128\times128$ board. Lower PAR-2 is better.}
+\label{tab:encodings}\input{tables/encodings}
+\end{table}
+\begin{figure}[pos=htbp]
+\centering\includegraphics[width=.83\linewidth]{figs/encodings.png}
+\caption{Encoding and formulation comparison with CaDiCaL. Timeouts contribute
+20 seconds each to PAR-2.}
+\label{fig:encodings}
+\end{figure}
+\FloatBarrier
+\input{encoding_findings}
+
+\subsection{SAT solver comparison}
+The second experiment fixes the selected reference encoding and compares
+CaDiCaL 1.9.5, Glucose 4.2, MiniSat 2.2, and MapleChrono through PySAT.
+These backends were checked locally before benchmarking. The same six
+sizes and three repetitions give $6\times4\times3=72$ runs. The selected
+encoding is disclosed below; choosing it on the same board family is an
+in-sample engineering choice rather than a held-out prediction.
+\begin{table}[pos=htbp]
+\centering\small
+\caption{Median process time (seconds) for the four SAT backends with a
+fixed reference encoding. TO includes the number of completed runs.}
+\label{tab:solvers}\input{tables/solvers}
+\end{table}
+\FloatBarrier
+\input{solver_findings}
+
+\subsection{SAT versus CP and ILP}
+The third experiment compares the reference SAT configuration with CPLEX
+CP, CPLEX MIP, Gurobi, and CP-SAT. It uses the six original sizes plus
+$n=256$ and $n=512$, retaining the same three repetitions, thread count,
+and ten-second process deadline. There are $8\times5\times3=120$ runs in
+the combined main and scaling experiments.
+\begin{table}[pos=htbp]
+\centering\small
+\caption{Median process time (seconds) for exact methods. Every fully solved
+cell represents three validated placements.}
+\label{tab:exact}\input{tables/exact}
+\end{table}
+\begin{table}[pos=htbp]
+\centering\small
+\caption{Median construction-plus-solve time (seconds) for the same runs.
+Imports and Gurobi WLS acquisition are excluded; deadline status is unchanged.}
+\label{tab:core}\input{tables/exact_core}
+\end{table}
+\begin{figure}[pos=htbp]
+\centering\includegraphics[width=\linewidth]{figs/exact.png}
+\caption{Exact-method comparison: PAR-2 versus board size (left) and
+cumulative solved runs versus process time (right). The cumulative plot
+counts repetitions rather than distinct sizes.}
+\label{fig:exact}
+\end{figure}
+\FloatBarrier
+\input{exact_findings}
+
+\subsection{Limitations}
+The ten-second deadline measures short-budget behavior, so a TO is not
+evidence that a method cannot solve that size with more time. Core times
+should not be read as successful runs under a separate ten-second search
+budget: all outcomes were determined by the same process deadline. Startup
+overhead is material on small boards, especially for CP-SAT imports and
+Gurobi WLS acquisition. Hardware power management and background tasks
+may introduce timing noise despite sequential execution.
+
+Only unconstrained square boards and default solver settings are studied.
+The selected SAT encoding is optimized using the same family later used
+for comparison, and the report does not claim an unbiased general ranking
+of solver technology. In particular, better CP, ILP, or SAT formulations,
+specialized constructions, symmetry breaking, or different parameter
+settings could change the ordering. Large-board tests concern finding one
+placement, not exhaustive counting. Completion instances would require
+additional benchmarks and conclusions.
+
+\section{Conclusion}
+The delivered implementation solves standard N-queens through SAT and four
+required CP/ILP baselines, exports CNF, independently checks placements,
+and reproduces the measured comparisons. The encoding study separates
+formula size from observed runtime, while the formulation study isolates
+the effect of redundant column clauses. Process and core timings make
+startup costs explicit. Complete small-board solution-set tests support
+the correctness of all ten SAT configurations, and saved placements permit
+independent validation of every successful benchmark run.
+\input{conclusion_findings}
+
+\section*{Data availability}
+Source code, tests, raw CSV results, JSONL placements, configuration files,
+and report sources are available at
+\url{https://github.com/dolong226/homework1-nqueens}.
+Gurobi license credentials are local configuration and are excluded from
+the repository.
+
+\section*{Declaration of generative AI and AI-assisted technologies}
+OpenAI Codex assisted with implementation, experiment automation, and report
+drafting. The automated correctness and solution-validation checks are
+documented above. The student should review the code, results, and manuscript
+before submission.
+
+\bibliographystyle{cas-model2-names}
+\bibliography{refs}
+\end{document}

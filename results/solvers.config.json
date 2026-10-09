@@ -1,0 +1,33 @@
+{
+  "experiment": "solvers",
+  "sizes": [
+    8,
+    16,
+    32,
+    64,
+    96,
+    128
+  ],
+  "repeats": 3,
+  "time_limit": 10.0,
+  "results": "results",
+  "methods": [
+    "sat:cadical195:commander:minimal",
+    "sat:glucose42:commander:minimal",
+    "sat:minisat22:commander:minimal",
+    "sat:maplechrono:commander:minimal"
+  ],
+  "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "cpu": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
+  "logical_cpus": 16,
+  "packages": {
+    "python-sat": "1.9.dev2",
+    "gurobipy": "13.0.3",
+    "cplex": "22.2.0.1",
+    "docplex": "2.32.264",
+    "ortools": "9.15.6755"
+  },
+  "threads": 1,
+  "symmetry_breaking": false
+}

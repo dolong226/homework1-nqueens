@@ -1,0 +1,119 @@
+{
+  "runs": 372,
+  "checked_solutions": 339,
+  "statuses": {
+    "SAT": 339,
+    "TIMEOUT": 33
+  },
+  "encoding_ranking": [
+    {
+      "method": "sat:cadical195:commander:minimal",
+      "par2": 0.44987053333413013
+    },
+    {
+      "method": "sat:cadical195:commander:extended",
+      "par2": 0.4589714777798185
+    },
+    {
+      "method": "sat:cadical195:product:extended",
+      "par2": 0.9208162499999162
+    },
+    {
+      "method": "sat:cadical195:binary:extended",
+      "par2": 1.2211669444449298
+    },
+    {
+      "method": "sat:cadical195:seqcounter:extended",
+      "par2": 1.2750344166658276
+    },
+    {
+      "method": "sat:cadical195:pairwise:minimal",
+      "par2": 1.8632602222205605
+    },
+    {
+      "method": "sat:cadical195:pairwise:extended",
+      "par2": 1.8980430277830844
+    },
+    {
+      "method": "sat:cadical195:binary:minimal",
+      "par2": 3.112859877777131
+    },
+    {
+      "method": "sat:cadical195:seqcounter:minimal",
+      "par2": 5.71766103888836
+    },
+    {
+      "method": "sat:cadical195:product:minimal",
+      "par2": 7.533763188886547
+    }
+  ],
+  "encoding_sizes": {
+    "sat:cadical195:commander:minimal": {
+      "n_vars": 49354,
+      "n_constraints": 226242
+    },
+    "sat:cadical195:commander:extended": {
+      "n_vars": 49354,
+      "n_constraints": 226370
+    },
+    "sat:cadical195:product:extended": {
+      "n_vars": 39174,
+      "n_constraints": 169112
+    },
+    "sat:cadical195:binary:extended": {
+      "n_vars": 21234,
+      "n_constraints": 447828
+    },
+    "sat:cadical195:seqcounter:extended": {
+      "n_vars": 81150,
+      "n_constraints": 193800
+    },
+    "sat:cadical195:pairwise:minimal": {
+      "n_vars": 16384,
+      "n_constraints": 3462656
+    },
+    "sat:cadical195:pairwise:extended": {
+      "n_vars": 16384,
+      "n_constraints": 3462784
+    },
+    "sat:cadical195:binary:minimal": {
+      "n_vars": 21234,
+      "n_constraints": 447700
+    },
+    "sat:cadical195:seqcounter:minimal": {
+      "n_vars": 81150,
+      "n_constraints": 193672
+    },
+    "sat:cadical195:product:minimal": {
+      "n_vars": 39174,
+      "n_constraints": 168984
+    }
+  },
+  "exact": {
+    "sat:cadical195:commander:minimal": {
+      "solved": 21,
+      "runs": 24,
+      "par2": 3.347941729166147
+    },
+    "cplex_cp": {
+      "solved": 24,
+      "runs": 24,
+      "par2": 1.4768743458334939
+    },
+    "cplex_mip": {
+      "solved": 24,
+      "runs": 24,
+      "par2": 1.2303854083402257
+    },
+    "gurobi": {
+      "solved": 24,
+      "runs": 24,
+      "par2": 0.7433247291689137
+    },
+    "cpsat": {
+      "solved": 18,
+      "runs": 24,
+      "par2": 6.553136420832743
+    }
+  }
+}

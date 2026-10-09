@@ -1,0 +1,16 @@
+{
+  "normalization": "UTF-8 with LF line endings",
+  "files": {
+    "nqueens/__init__.py": "ea056bc9fb629e89b218c0a5fbe28b782674a1ac2389db7c27db0d4ea06983b9",
+    "nqueens/amo.py": "0f3f37a06982e933b52ba0de0d4d0a5fa6efb516bd507b94f2207ecb763ff3a0",
+    "nqueens/analyze.py": "387f341797a639c45a2d6d62eb3d98237aa0e7caf60475b5b8c3dd96d06c3ac5",
+    "nqueens/benchmark.py": "e17e84849dabb61ddf46a4570e6379380dc4f1b714b0034c5287e4c594280da5",
+    "nqueens/board.py": "a421227cb2f0e0ebb8d36e9a76d7da90ccc33f3e0f428187e0336c543075198e",
+    "nqueens/exact_models.py": "edf4efd3d2b92691d6083feaa5c90e2a78bc04faa47b34ad06acffef3476bdfd",
+    "nqueens/experiment.py": "9c39947f6b747e339c2a56cad1c97493baeeee8f31dc969f0c7f606358d5b829",
+    "nqueens/run_one.py": "ec098c77746f09f17f1f231568c1d532f23d4ac2504fa50ce054746ba1cfebc7",
+    "nqueens/sat_model.py": "c5d57bc89ecdb9454207489b2e6fc1163be2a90bc5c5c2bbfe7e889067f142c4",
+    "tests/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tests/test_models.py": "01efc5d7a5efbaa9e143444f4e8112cf31c0e8abd422a60573a9335fa6dd4e93"
+  }
+}
