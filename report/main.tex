@@ -16,8 +16,10 @@
 \shortauthors{Do Duc Long}
 \title[mode=title]{Solving N-Queens with SAT: An Experimental Comparison of Cardinality Encodings and Exact Solvers}
 \author[1]{Do Duc Long}
+\cormark[1]
 \ead{24021550@vnu.edu.vn}
 \affiliation[1]{organization={VNU University of Engineering and Technology},city={Hanoi},country={Vietnam}}
+\cortext[1]{Corresponding author}
 \begin{abstract}
 This report implements an exact SAT solver for the standard N-queens puzzle
 and compares five at-most-one encodings: pairwise, binary, commander, recursive
@@ -52,7 +54,7 @@ those constraints are translated into conjunctive normal form (CNF), even
 when the resulting formulas have exactly the same board solutions.
 
 PySAT supplies a common interface to SAT engines and cardinality
-encoders~\cite{pysat,pysatcard}. This makes it possible to compare encoding
+encoders~\cite{pysat}. This makes it possible to compare encoding
 choices without changing the application semantics. Constraint programming
 (CP) instead represents a queen by its column and expresses non-attacking
 conditions with global all-different constraints~\cite{ortools}. Integer
@@ -63,7 +65,7 @@ a comparison between SAT and established exact solvers.
 The present work contributes (i) an executable SAT solver with five AMO
 encodings and two formulations, (ii) a semantic verification suite that
 checks complete projected solution sets on small boards, (iii) comparisons
-with four SAT backends and all four CP/ILP solvers required by Homework 1,
+with four SAT backends and all four CP/ILP solvers required by the course assignment,
 and (iv) reproducible measurements, raw placements, figures, and this report.
 
 The standard puzzle has a solution for $n=1$ and every $n\ge4$, while $n=2$
@@ -73,6 +75,8 @@ where some queens are fixed in advance, is a different problem and is
 NP-complete~\cite{gent}. Here the aim is to study the behavior of generic
 exact methods on the standard puzzle, rather than propose a new algorithm
 that supersedes explicit constructions.
+
+\input{background}
 
 \section{Problem definition and baseline models}
 \subsection{Problem definition}
@@ -103,8 +107,8 @@ global constraints
 \operatorname{AllDifferent}(q_0,q_1+1,\ldots,q_{n-1}+n-1),\\
 \operatorname{AllDifferent}(q_0,q_1-1,\ldots,q_{n-1}-(n-1)).
 \end{align}
-The same expressions are supplied to CPLEX CP Optimizer through DOcplex~\cite{ibm} and
-to OR-Tools CP-SAT. The counts $n$ variables and three constraints refer to
+The same expressions are supplied to CPLEX CP Optimizer~\cite{cpoptimizer}
+through DOcplex~\cite{ibm} and to OR-Tools CP-SAT~\cite{cpsat}. The counts $n$ variables and three constraints refer to
 the user model; solver-internal expansion and presolve may add variables
 and constraints. In particular, CP-SAT is not a pure finite-domain CP engine:
 it combines SAT-based reasoning with other techniques. Its inclusion provides
@@ -123,7 +127,7 @@ The feasibility model is
 \end{align}
 The constant objective is zero. For $n\ge2$ there are $n^2$ binary variables
 and $6n-6$ linear constraints. Singleton diagonals need no constraint.
-Gurobi~\cite{gurobi} and CPLEX MIP receive the identical model, with one thread, an explicit
+Gurobi~\cite{gurobi} and CPLEX MIP~\cite{cplex} receive the identical model, with one thread, an explicit
 seed, and the default presolve settings. No model receives symmetry-breaking
 constraints, a warm start, or a precomputed placement.
 
@@ -156,65 +160,8 @@ satisfy its CNF. The extended formula contains $n$ additional clauses and
 no additional variables. Although logically redundant, those clauses may
 change propagation and search.
 
-\subsection{Five at-most-one encodings}
-For $X=\{x_1,\ldots,x_k\}$, the implementations are as follows.
-
-\paragraph{Pairwise.} For every $i<j$, add $\neg x_i\vee\neg x_j$.
-This needs $\binom{k}{2}$ clauses and no auxiliary variables. It is implemented
-directly by enumerating pairs.
-
-\paragraph{Binary.} Introduce $\lceil\log_2 k\rceil$ bits and assign a distinct
-bit pattern to every literal. Each $x_i$ implies its pattern through binary
-clauses. Two true literals would force different values for some bit.
-The implementation uses PySAT's bitwise cardinality encoder~\cite{pysatcard}.
-
-\paragraph{Commander.} Partition literals into groups of at most three.
-For a group $G$ introduce $a_G$, add pairwise AMO within $G$, add
-$\neg x\vee a_G$ for $x\in G$, and add $\neg a_G\vee\bigvee_{x\in G}x$.
-Apply the construction recursively to the commanders~\cite{commander}.
-Groups with at most four literals are handled by pairwise encoding. The
-reverse implication prevents an unused commander from being true; it is
-included consistently in all experiments.
-
-\paragraph{Recursive product.} Arrange the $k$ literals in a
-$p\times q$ grid, with $p=\lceil\sqrt{k}\rceil$ and $q=\lceil k/p\rceil$.
-Introduce row indicators $u_i$ and column indicators $v_j$. A literal in
-position $(i,j)$ implies both $u_i$ and $v_j$. Encode AMO on the two
-indicator sets recursively, using pairwise constraints for sets of size
-at most four~\cite{product}. Distinct true literals must differ in a row or
-a column, contradicting one indicator AMO.
-
-\paragraph{Sequential counter.} PySAT supplies Sinz's sequential
-counter~\cite{sinz}. For $k\ge3$, it uses $k-1$ auxiliary variables and $3k-4$
-clauses for AMO. The clauses propagate prefix occupancy and exclude any
-later true literal once the prefix is occupied. PySAT simplifies the
-two-literal case to one binary clause.
-
-\begin{table}[pos=htbp]
-\centering
-\caption{Asymptotic size of one AMO constraint. Small-group shortcuts in the
-actual implementations can change exact counts.}
-\label{tab:amo}
-\begin{tabular}{lrr}\toprule
-Encoding & Auxiliary variables & Clauses\\\midrule
-Pairwise & 0 & $\binom{k}{2}$\\
-Binary & $\lceil\log_2 k\rceil$ & $k\lceil\log_2 k\rceil$\\
-Commander & $O(k)$ & $O(k)$\\
-Recursive product & $O(\sqrt{k})$ & $O(k)$\\
-Sequential counter & $k-1$ & $3k-4$ ($k\ge3$)\\\bottomrule
-\end{tabular}
-\end{table}
-
-There are $O(n)$ AMO groups with up to $n$ literals each. The complete
-pairwise CNF therefore has $\Theta(n^3)$ clauses; binary uses
-$O(n^2\log n)$, while commander, product, and sequential counter use
-$O(n^2)$. More precisely, pairwise $F_{\min}$ has
-\begin{equation}
-n+2n\binom n2+2\left(\binom n2+2\binom n3\right)
-=\frac{5n^3-6n^2+4n}{3}
-\end{equation}
-clauses for $n\ge2$. A compact formula is not sufficient to predict
-runtime: propagation and the resulting search trajectory also matter.
+\input{encoding_details}
+\input{size_analysis}
 
 \subsection{Implementation and correctness checks}
 The SAT encoder streams clauses into the chosen solver instead of retaining
@@ -233,7 +180,10 @@ The resulting solution sets are compared with an independent backtracking
 implementation, yielding counts $1,0,0,2,10,4,40,92$. Integration checks
 also confirm infeasibility at $n=3$ and a valid solution at $n=8$ for every
 CP/ILP backend. These tests verify semantic equivalence rather than only
-checking that the code runs.
+checking that the code runs. A separate unit-propagation test covers every
+selected input for group sizes one through 64, with both literal polarities;
+it does not invoke a SAT search. The formula-size recurrences above are
+also checked against the generated CNF before drawing the size figure.
 
 \section{Computational experiments}
 \subsection{Environment and protocol}
@@ -282,7 +232,9 @@ encodings under both formulations at $n\in\{8,16,32,64,96,128\}$. It contains
 $6\times10\times3=180$ runs. Table~\ref{tab:encodings} includes exact variable
 and clause counts at $n=128$, recomputed from the encoder independently of
 whether a particular timed run finished. Figure~\ref{fig:encodings} shows
-PAR-2 by board size.
+PAR-2 by board size, and Table~\ref{tab:enc-sizes} in
+Appendix~\ref{app:sizes} lists the median process time of every
+configuration at every size.
 \begin{table}[pos=htbp]
 \centering\small
 \caption{Encoding comparison over 18 runs per configuration. Structural
@@ -298,9 +250,12 @@ counts refer to the $128\times128$ board. Lower PAR-2 is better.}
 \FloatBarrier
 \input{encoding_findings}
 
+\input{encoding_discussion}
+
 \subsection{SAT solver comparison}
 The second experiment fixes the selected reference encoding and compares
-CaDiCaL 1.9.5, Glucose 4.2, MiniSat 2.2, and MapleChrono through PySAT.
+CaDiCaL 1.9.5~\cite{cadical}, Glucose 4.2~\cite{glucose}, MiniSat
+2.2~\cite{minisat}, and MapleChrono~\cite{chrono} through PySAT.
 These backends were checked locally before benchmarking. The same six
 sizes and three repetitions give $6\times4\times3=72$ runs. The selected
 encoding is disclosed below; choosing it on the same board family is an
@@ -313,6 +268,8 @@ fixed reference encoding. TO includes the number of completed runs.}
 \end{table}
 \FloatBarrier
 \input{solver_findings}
+
+\input{solver_discussion}
 
 \subsection{SAT versus CP and ILP}
 The third experiment compares the reference SAT configuration with CPLEX
@@ -341,6 +298,8 @@ counts repetitions rather than distinct sizes.}
 \end{figure}
 \FloatBarrier
 \input{exact_findings}
+
+\input{exact_discussion}
 
 \subsection{Limitations}
 The ten-second deadline measures short-budget behavior, so a TO is not
@@ -371,6 +330,18 @@ the correctness of all ten SAT configurations, and saved placements permit
 independent validation of every successful benchmark run.
 \input{conclusion_findings}
 
+\input{future_work}
+
+\section*{CRediT authorship contribution statement}
+\textbf{Do Duc Long:} Conceptualization, Methodology, Software,
+Validation, Investigation, Data curation, Visualization,
+Writing -- original draft, Writing -- review \& editing.
+
+\section*{Declaration of competing interest}
+The author declares no known competing financial interests or personal
+relationships that could have appeared to influence the work reported
+in this paper.
+
 \section*{Data availability}
 Source code, tests, raw CSV results, JSONL placements, configuration files,
 and report sources are available at
@@ -378,11 +349,26 @@ and report sources are available at
 Gurobi license credentials are local configuration and are excluded from
 the repository.
 
+\appendix
+\section{Encoding results by board size}
+\label{app:sizes}
+\begin{table}[pos=htbp]
+\centering\small
+\caption{Median process time (seconds) of each encoding and formulation
+with CaDiCaL, over three repetitions per cell. TO $(s/3)$ means only $s$
+of three runs finished within the ten-second deadline.}
+\label{tab:enc-sizes}\input{tables/encodings_by_size}
+\end{table}
+\FloatBarrier
+
 \section*{Declaration of generative AI and AI-assisted technologies}
 OpenAI Codex assisted with implementation, experiment automation, and report
-drafting. The automated correctness and solution-validation checks are
-documented above. The student should review the code, results, and manuscript
-before submission.
+drafting. Claude Code (Anthropic) assisted with the final revision of the
+report (related work, references, and appendix) and of the reproduction
+scripts. The automated correctness and solution-validation checks are
+documented above, and the raw measurements and placements are supplied
+for inspection. These checks cover the tested cases and do not replace
+the author's responsibility for the submitted work.
 
 \bibliographystyle{cas-model2-names}
 \bibliography{refs}

@@ -170,8 +170,10 @@ def main():
     text += (". Timeout cells in Tables~\\ref{tab:exact} and~\\ref{tab:core} "
              "preserve unsuccessful runs. On small boards, process times include "
              "library and license startup that may exceed actual search time. "
-             "On larger boards, representation size and search dominate, so the "
-             "compact CP model and binary board model need not scale similarly.\n")
+             "At larger sizes, the core-time table shows differences in "
+             "construction and search costs, while startup remains part of "
+             "the process deadline. The input-model size alone does not "
+             "explain those costs.\n")
     largest = max(exact_sizes)
     text += f"At $n={largest}$, "
     text += "; ".join(f"{'SAT' if m.startswith('sat:') else label(m)} completes "

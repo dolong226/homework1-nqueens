@@ -9,6 +9,7 @@ cột hoặc đường chéo. So sánh SAT với **CPLEX CP Optimizer, CPLEX MIP
 
 - `nqueens/`: mô hình SAT/CP/ILP, kiểm tra nghiệm, xuất DIMACS và chạy thực nghiệm.
 - `tests/`: kiểm tra đầy đủ nghiệm đến n=8; bảng chân trị AMO; kiểm tra các solver.
+- Kiểm tra unit propagation riêng cho AMO đến 64 đầu vào, không gọi SAT search.
 - `results/`: CSV, cấu hình thực nghiệm, JSONL lưu nghiệm thực và tổng hợp.
 - `report/main.tex`, `report/main.pdf`: báo cáo theo mẫu Elsevier `cas-sc`.
 - `report/tables/`, `report/figs/`: bảng và hình sinh trực tiếp từ kết quả.
@@ -69,13 +70,24 @@ SAT có 5 mã hóa AMO: `pairwise`, `binary`, `commander`, `product`, `seqcounte
 
 ## Kiểm tra và tái lập kết quả
 
+Kiểm tra lại số liệu đã nộp (không chạy lại benchmark):
+
 ```powershell
 python -m unittest discover -v
 $env:NQUEENS_INTEGRATION='1'
 python -m unittest tests.test_models.ModelTests.test_exact_backends -v
-.\reproduce.ps1
 python -m nqueens.analyze
+python -m nqueens.report_details
 ```
+
+Chạy lại toàn bộ thực nghiệm (khoảng 372 lần chạy, tối đa vài chục phút):
+
+```powershell
+.\reproduce.ps1                      # ghi vào results-new\ và results-new\report\
+.\reproduce.ps1 -Results results-pc2 # hoặc thư mục khác
+```
+
+`reproduce.ps1` không ghi đè `results/` và `report/` đã nộp.
 
 Các kích thước chính: 8, 16, 32, 64, 96, 128. Phần mở rộng so sánh đủ năm
 phương pháp ở 256 và 512. Cấu hình SAT đối chiếu là
@@ -86,8 +98,15 @@ các phương pháp CP/MIP dùng seed 1, 2, 3, một luồng. SAT dùng tham s�
 của backend và chạy lại trong tiến trình mới; các lần lặp chủ yếu đo biến động thời gian.
 Không dùng phá đối xứng hoặc nghiệm gợi ý cho bất kỳ solver nào.
 
+`nqueens.report_details` kiểm tra công thức đếm biến/mệnh đề theo cài đặt,
+sinh hình kích thước CNF, bảng tách thời gian dựng/giải và khoảng min–max
+từ ba lần lặp đã lưu. Lệnh này không chạy lại benchmark. Các CSV/JSONL,
+cấu hình và `results/source-sha256.json` của đợt thu số liệu được giữ nguyên;
+các phần phân tích/báo cáo và kiểm thử propagation được cập nhật sau đợt đó.
+
 CSV cho phép tiếp tục lần chạy bị gián đoạn nếu cấu hình khớp. Để thực nghiệm khác,
-dùng `--results results-new`; không ghi đè số liệu đã nộp. File `.lock` ngăn hai lần
+dùng `--results results-new` (cho cả `nqueens.experiment` và `nqueens.benchmark`);
+không ghi đè số liệu đã nộp. File `.lock` ngăn hai lần
 chạy cùng thực nghiệm. Chỉ xóa lock nếu tiến trình được ghi trong file đã dừng.
 
 Thời gian `process_time` đo toàn bộ tiến trình con. `total_time` là xây dựng cộng

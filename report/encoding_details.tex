@@ -1,0 +1,116 @@
+\subsection{Five at-most-one encodings}
+Let $X=(x_1,\ldots,x_k)$ be an ordered sequence of distinct input variables.
+An encoding $E(X,Y)$ may introduce auxiliary variables $Y$, but must satisfy
+\begin{equation}
+\AMO(X)\quad\Longleftrightarrow\quad\exists Y\ E(X,Y).
+\end{equation}
+In particular, an assignment with no true input must remain possible.
+All auxiliaries are fresh for each AMO group, including recursive calls.
+Groups of size zero or one need no clauses. The formulas below describe
+the implementation used to produce the measurements.
+
+\subsubsection{Pairwise}
+The direct encoding excludes every pair of true inputs:
+\begin{equation}
+E_{\mathrm{pair}}(X)=\bigwedge_{1\le i<j\le k}
+(\neg x_i\vee\neg x_j).
+\end{equation}
+Any two true inputs violate their pair clause; conversely, zero or one
+true input satisfies all pair clauses. There are $\binom{k}{2}$ clauses
+and no auxiliary variables. For $k=3$ these are
+$(\neg x_1\vee\neg x_2)$, $(\neg x_1\vee\neg x_3)$, and
+$(\neg x_2\vee\neg x_3)$. Setting $x_2$ true immediately forces
+$x_1$ and $x_3$ false.
+
+\subsubsection{Binary}
+The implementation calls PySAT's bitwise AMO encoder~\cite{pysatcard}.
+Let $b=\lceil\log_2 k\rceil$ and introduce $y_0,\ldots,y_{b-1}$.
+Assign input $x_i$ the $b$-bit representation of $i-1$, ordered from
+most to least significant bit. Write $\ell_{it}=y_t$ when bit position
+$t$ in that order is one and $\ell_{it}=\neg y_t$
+otherwise. The clauses are
+\begin{equation}
+E_{\mathrm{bin}}(X,Y)=\bigwedge_{i=1}^{k}\bigwedge_{t=0}^{b-1}
+(\neg x_i\vee\ell_{it}).
+\end{equation}
+Two true inputs require different values of some bit, producing a
+contradiction. With one true input, choose its pattern; with none, the
+bits are unrestricted. For $k\ge3$, the encoding uses $b$ auxiliaries and
+$kb$ clauses. PySAT simplifies $k=2$ to one pairwise clause with no bits.
+For four inputs with patterns $00,01,10,11$, selecting $x_3$ fixes pattern
+$10$. Each other input disagrees with a fixed bit and is propagated false.
+
+\subsubsection{Commander}
+The grouping construction follows Klieber and Kwon~\cite{commander}.
+For $k>4$, partition $X$ into consecutive groups $G_1,\ldots,G_m$ of
+at most three inputs, where $m=\lceil k/3\rceil$. Introduce commander
+$a_j$ for each group and use
+\begin{align}
+E_{\mathrm{cmd}}(X,A)={}&
+\bigwedge_j E_{\mathrm{pair}}(G_j)\ \wedge\
+\bigwedge_j\bigwedge_{x\in G_j}(\neg x\vee a_j)\nonumber\\
+&{}\wedge\bigwedge_j\left(\neg a_j\vee\bigvee_{x\in G_j}x\right)
+\ \wedge\ E_{\mathrm{cmd}}(A).
+\end{align}
+Recursion ends at $k\le4$ with pairwise clauses. The within-group clauses
+exclude two selections in one group; forward implications and commander
+AMO exclude selections in different groups. Assigning each commander the
+disjunction of its members extends every valid input assignment, including
+the all-false assignment. Reverse implications are included in this
+implementation, although removing them preserves the projected AMO
+relation. This is a stated implementation choice, not a claim that every
+commander encoder uses the same clauses or cutoff.
+
+\subsubsection{Recursive product}
+This implementation uses the recursive two-dimensional product
+construction~\cite{product}. For $k>4$, let $p=\lceil\sqrt{k}\rceil$
+and $q=\lceil k/p\rceil$. Introduce $U=(u_1,\ldots,u_p)$ and
+$V=(v_1,\ldots,v_q)$. Input $x_i$ occupies
+$r(i)=\lfloor(i-1)/q\rfloor+1$, $c(i)=((i-1)\bmod q)+1$. Add
+\begin{equation}
+E_{\mathrm{prod}}=
+\bigwedge_{i=1}^k
+\left[(\neg x_i\vee u_{r(i)})\wedge(\neg x_i\vee v_{c(i)})\right]
+\wedge E_{\mathrm{prod}}(U)\wedge E_{\mathrm{prod}}(V).
+\end{equation}
+The recursive AMO calls use pairwise clauses for at most four inputs.
+Distinct selected inputs differ in a row or column coordinate and
+therefore violate one coordinate AMO. A single selected input can be
+extended by choosing its two coordinates; for no selected inputs, choose
+all coordinates false. Unused grid cells need no extra exclusion clauses
+for this projected AMO relation, and this implementation adds none.
+For $k=6$, a $3\times2$ grid maps $x_1,x_2$ to the first grid row,
+$x_3,x_4$ to the second, and $x_5,x_6$ to the third.
+
+\subsubsection{Sequential counter}
+PySAT supplies the AMO specialization of Sinz's sequential
+counter~\cite{sinz}. For $k\ge3$, introduce $s_1,\ldots,s_{k-1}$ and add
+\begin{align}
+&(\neg x_1\vee s_1),\qquad(\neg x_k\vee\neg s_{k-1}),\nonumber\\
+&\bigwedge_{i=2}^{k-1}
+\left[(\neg x_i\vee s_i)\wedge(\neg s_{i-1}\vee s_i)
+\wedge(\neg x_i\vee\neg s_{i-1})\right].
+\end{align}
+A true input forces a true prefix indicator that propagates forward,
+preventing any later input from being true. A satisfying extension sets
+$s_i=\bigvee_{j\le i}x_j$; the clauses do not require this equality for
+every auxiliary assignment. The size is $k-1$ auxiliaries and $3k-4$
+clauses. PySAT reduces $k=2$ to one pairwise clause without auxiliaries.
+
+\subsubsection{Propagation on the original inputs}
+Each construction above has the following useful property for an isolated
+AMO: selecting one input makes unit propagation falsify every other input.
+Pairwise uses the pair clauses directly. Binary fixes a unique bit pattern.
+Commander propagates to the selected group's commander, excludes other
+commanders recursively, and then excludes their members. Product selects
+one row and column coordinate and excludes every other input through at
+least one coordinate. Sequential propagates true prefix indicators forward
+and false prefix indicators backward.
+
+For example, with four sequential inputs, setting $x_3$ true forces
+$s_3$ true and $s_2$ false. The latter forces $s_1$ and $x_2$ false, then
+$x_1$ false; $s_3$ true forces $x_4$ false. This is an input-propagation
+property of one AMO, not complete propagation of the entire N-queens CNF.
+It also does not imply equal propagation cost or equal search time across
+encodings. The proof descriptions follow the displayed clauses; the
+additional automated checks are described below.

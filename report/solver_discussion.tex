@@ -1,0 +1,3 @@
+At $n=32$, CaDiCaL's median process time is 0.278 s with range [0.267, 0.281], whereas Glucose records 7.891 s with range [7.885, 7.948]. The difference exceeds the observed timing spread, although three repetitions do not establish a statistical ranking. At $n=96$, MiniSat is faster than CaDiCaL in the median table, while CaDiCaL is faster at $n=128$. The aggregate winner need not win at every size.
+
+Because the formula is fixed, these differences cannot be explained by choosing a different AMO construction for each backend. The saved SAT records include aggregate search counters, but no controlled ablation of branching or learned-clause policies was conducted. The report therefore does not assign the runtime differences to a specific solver heuristic.
