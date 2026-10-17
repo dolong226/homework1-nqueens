@@ -1,119 +1,120 @@
 {
-  "runs": 372,
-  "checked_solutions": 339,
+  "runs": 124,
+  "checked_solutions": 110,
   "statuses": {
-    "SAT": 339,
-    "TIMEOUT": 33
+    "SAT": 110,
+    "TIMEOUT": 14
   },
+  "time_limit": 180.0,
   "encoding_ranking": [
     {
       "method": "sat:cadical195:commander:minimal",
-      "par2": 0.44987053333413013
+      "par2": 1.3769244499999331
     },
     {
       "method": "sat:cadical195:commander:extended",
-      "par2": 0.4589714777798185
-    },
-    {
-      "method": "sat:cadical195:product:extended",
-      "par2": 0.9208162499999162
+      "par2": 1.9472601833355536
     },
     {
       "method": "sat:cadical195:binary:extended",
-      "par2": 1.2211669444449298
+      "par2": 4.145017716667401
     },
     {
-      "method": "sat:cadical195:seqcounter:extended",
-      "par2": 1.2750344166658276
-    },
-    {
-      "method": "sat:cadical195:pairwise:minimal",
-      "par2": 1.8632602222205605
-    },
-    {
-      "method": "sat:cadical195:pairwise:extended",
-      "par2": 1.8980430277830844
+      "method": "sat:cadical195:product:extended",
+      "par2": 4.5272759333311114
     },
     {
       "method": "sat:cadical195:binary:minimal",
-      "par2": 3.112859877777131
+      "par2": 16.33407773333359
+    },
+    {
+      "method": "sat:cadical195:seqcounter:extended",
+      "par2": 22.91676441666641
+    },
+    {
+      "method": "sat:cadical195:pairwise:minimal",
+      "par2": 62.045408016669775
+    },
+    {
+      "method": "sat:cadical195:pairwise:extended",
+      "par2": 62.206253416668915
     },
     {
       "method": "sat:cadical195:seqcounter:minimal",
-      "par2": 5.71766103888836
+      "par2": 71.85021609999724
     },
     {
       "method": "sat:cadical195:product:minimal",
-      "par2": 7.533763188886547
+      "par2": 122.78242148333568
     }
   ],
   "encoding_sizes": {
     "sat:cadical195:commander:minimal": {
-      "n_vars": 49354,
-      "n_constraints": 226242
+      "n_vars": 197342,
+      "n_constraints": 911754
     },
     "sat:cadical195:commander:extended": {
-      "n_vars": 49354,
-      "n_constraints": 226370
-    },
-    "sat:cadical195:product:extended": {
-      "n_vars": 39174,
-      "n_constraints": 169112
+      "n_vars": 197342,
+      "n_constraints": 912010
     },
     "sat:cadical195:binary:extended": {
-      "n_vars": 21234,
-      "n_constraints": 447828
+      "n_vars": 76784,
+      "n_constraints": 2053460
     },
-    "sat:cadical195:seqcounter:extended": {
-      "n_vars": 81150,
-      "n_constraints": 193800
-    },
-    "sat:cadical195:pairwise:minimal": {
-      "n_vars": 16384,
-      "n_constraints": 3462656
-    },
-    "sat:cadical195:pairwise:extended": {
-      "n_vars": 16384,
-      "n_constraints": 3462784
+    "sat:cadical195:product:extended": {
+      "n_vars": 125800,
+      "n_constraints": 631720
     },
     "sat:cadical195:binary:minimal": {
-      "n_vars": 21234,
-      "n_constraints": 447700
+      "n_vars": 76784,
+      "n_constraints": 2053204
+    },
+    "sat:cadical195:seqcounter:extended": {
+      "n_vars": 326142,
+      "n_constraints": 780808
+    },
+    "sat:cadical195:pairwise:minimal": {
+      "n_vars": 65536,
+      "n_constraints": 27831296
+    },
+    "sat:cadical195:pairwise:extended": {
+      "n_vars": 65536,
+      "n_constraints": 27831552
     },
     "sat:cadical195:seqcounter:minimal": {
-      "n_vars": 81150,
-      "n_constraints": 193672
+      "n_vars": 326142,
+      "n_constraints": 780552
     },
     "sat:cadical195:product:minimal": {
-      "n_vars": 39174,
-      "n_constraints": 168984
+      "n_vars": 125800,
+      "n_constraints": 631464
     }
   },
   "exact": {
     "sat:cadical195:commander:minimal": {
-      "solved": 21,
-      "runs": 24,
-      "par2": 3.347941729166147
+      "solved": 7,
+      "runs": 8,
+      "par2": 55.7109908875027
     },
     "cplex_cp": {
-      "solved": 24,
-      "runs": 24,
-      "par2": 1.4768743458334939
+      "solved": 8,
+      "runs": 8,
+      "par2": 4.263691862495762
     },
     "cplex_mip": {
-      "solved": 24,
-      "runs": 24,
-      "par2": 1.2303854083402257
+      "solved": 7,
+      "runs": 8,
+      "par2": 47.60615655000038
     },
     "gurobi": {
-      "solved": 24,
-      "runs": 24,
-      "par2": 0.7433247291689137
+      "solved": 8,
+      "runs": 8,
+      "par2": 3.8199890375035466
     },
     "cpsat": {
-      "solved": 18,
-      "runs": 24,
-      "par2": 6.553136420832743
+      "solved": 6,
+      "runs": 8,
+      "par2": 102.14064811250137
     }
   }
 }

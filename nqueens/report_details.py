@@ -10,7 +10,7 @@ from pathlib import Path
 from statistics import median
 
 from .amo import ENCODINGS
-from .analyze import audit, latex_table, measured_cell, read_results
+from .analyze import audit, fmt, latex_table, measured_cell, read_results, update_numbers
 from .sat_model import clauses
 
 
@@ -87,124 +87,43 @@ def main():
     def cell(exp, n, method):
         found = [r for r in rows if r["experiment"] == exp and r["n"] == n
                  and r["method"] == method]
-        if len(found) != 3:
-            raise ValueError(f"Expected three repetitions: {exp}, n={n}, {method}")
+        if not found:
+            raise ValueError(f"No measurements: {exp}, n={n}, {method}")
         return found
-
-    def complete(exp, n, method):
-        found = cell(exp, n, method)
-        if any(r["status"] != "SAT" for r in found):
-            raise ValueError(f"Cannot summarize an incomplete cell: {exp}, n={n}, {method}")
-        return found
-
-    def med(exp, n, method, field):
-        return median(r[field] for r in complete(exp, n, method))
 
     def sat(name, variant="minimal"):
         return f"sat:cadical195:{name}:{variant}"
 
+    max_n = max(ns)
+    numbers = {}
     body = []
     for name in ENCODINGS:
         for variant in ("minimal", "extended"):
-            values = cell("encodings", 128, sat(name, variant))
-            solved = sum(r["status"] == "SAT" for r in values)
-            if solved == len(values):
+            values = cell("encodings", max_n, sat(name, variant))
+            done = [r for r in values if r["status"] == "SAT"]
+            if len(done) == len(values):
                 times = [r["process_time"] for r in values]
-                metrics = [f"{median(r[f] for r in values):.3f}" for f in
-                           ("build_time", "solve_time")]
-                metrics.append(f"{median(times):.3f} [{min(times):.3f}, {max(times):.3f}]")
+                build, solve = (median(r[f] for r in values) for f in ("build_time", "solve_time"))
+                numbers[f"cost/{name}-{variant}/build"] = fmt(build)
+                numbers[f"cost/{name}-{variant}/solve"] = fmt(solve)
+                metrics = [fmt(build), fmt(solve),
+                           fmt(median(times))]
             else:
-                metrics = ["--", "--", f"TO ({solved}/3)"]
+                metrics = ["--", "--", f"TO ({len(done)}/{len(values)})"]
             body.append([f"{name}/{variant}"] + metrics)
     latex_table(tables / "encoding_costs.tex",
-                ["Encoding / formulation", "Build", "Solve", "Process [min, max]"], body)
+                ["Encoding / formulation", "Build", "Solve", "Process"], body)
 
     body = [[f"{name}/{variant}"] + [measured_cell(cell("encodings", n, sat(name, variant)))
                                       for n in ns]
             for variant in ("minimal", "extended") for name in ENCODINGS]
     latex_table(tables / "encodings_by_size.tex",
                 ["Encoding / formulation"] + [f"$n={n}$" for n in ns], body)
-
-    pair_build = med("encodings", 128, sat("pairwise"), "build_time")
-    cmd_build = med("encodings", 128, sat("commander"), "build_time")
-    product_time = med("encodings", 128, sat("product", "extended"), "process_time")
-    seq_time = med("encodings", 128, sat("seqcounter", "extended"), "process_time")
-    text = r"""\paragraph{Construction cost and repeated-run variation.}
-Table~\ref{tab:encoding-costs} separates construction and search at $n=128$.
-Build time includes generating clauses and inserting them into the SAT
-solver; solve time measures the solver call. The process column gives a
-median and observed minimum--maximum range across the three repetitions.
-Each timing column is summarized separately, so its medians need not add
-up. A range from three repeats is descriptive, not a confidence interval.
-\begin{table}[pos=htbp]
-\centering\small
-\caption{Encoding-study times at $n=128$, in seconds. Completed cells
-contain three valid solutions. No component times are imputed for timeouts.}
-\label{tab:encoding-costs}\input{tables/encoding_costs}
-\end{table}
-\FloatBarrier
-"""
-    text += (f"For pairwise/minimal, the median construction time is {pair_build:.3f} s, "
-             f"compared with {cmd_build:.3f} s for commander/minimal. "
-             f"The ratio is approximately {pair_build/cmd_build:.1f} on this implementation. "
-             "This connects the clause-count reduction to an observed construction "
-             "saving. It does not determine search performance: product/extended "
-             "has fewer clauses than commander/minimal but a longer solver call.\n\n")
-    text += (r"\paragraph{Effect of redundant column clauses.}" + "\n"
-             "At $n=128$, product/minimal and seqcounter/minimal each finish "
-             "zero of three runs, while their extended versions finish all three "
-             f"with median process times {product_time:.3f} s and {seq_time:.3f} s. "
-             "In each case, extended adds only 128 column ALO clauses and no "
-             "variables. These explicit column disjunctions make the column "
-             "occupancy requirement directly available to unit propagation; "
-             "in minimal it follows from the combined row and column constraints. "
-             "The measured improvement is consistent with a change in propagation "
-             "or search, but timings alone do not isolate which internal events "
-             "caused it. Commander receives the same additional clauses without "
-             "a comparable improvement. The benefit is therefore conditional on "
-             "the encoding, not a universal advantage of adding redundant clauses.\n")
-    (report / "encoding_discussion.tex").write_text(text, encoding="utf-8")
-
-    ca = complete("solvers", 32, sat("commander"))
-    gl = complete("solvers", 32, "sat:glucose42:commander:minimal")
-    ca_times, gl_times = ([r["process_time"] for r in values] for values in (ca, gl))
-    text = (f"At $n=32$, CaDiCaL's median process time is {median(ca_times):.3f} s "
-            f"with range [{min(ca_times):.3f}, {max(ca_times):.3f}], whereas Glucose "
-            f"records {median(gl_times):.3f} s with range "
-            f"[{min(gl_times):.3f}, {max(gl_times):.3f}]. "
-            "The difference exceeds the observed timing spread, although three "
-            "repetitions do not establish a statistical ranking. At $n=96$, "
-            "MiniSat is faster than CaDiCaL in the median table, while CaDiCaL "
-            "is faster at $n=128$. The aggregate winner need not win at every size.\n\n"
-            "Because the formula is fixed, these differences cannot be explained "
-            "by choosing a different AMO construction for each backend. The saved "
-            "SAT records include aggregate search counters, but no controlled "
-            "ablation of branching or learned-clause policies was conducted. "
-            "The report therefore does not assign the runtime differences to a "
-            "specific solver heuristic.\n")
-    (report / "solver_discussion.tex").write_text(text, encoding="utf-8")
-
-    text = ("The choice of timing metric changes the small-board interpretation. "
-            "At $n=8$, reference SAT has median process time "
-            f"{med('exact',8,sat('commander'),'process_time'):.3f} s, compared with "
-            f"{med('exact',8,'cplex_cp','process_time'):.3f} s for CPLEX CP. "
-            "Their construction-plus-solve medians are only "
-            f"{med('exact',8,sat('commander'),'total_time'):.3f} s and "
-            f"{med('exact',8,'cplex_cp','total_time'):.3f} s. "
-            "Much of the end-to-end difference at this size lies outside the "
-            "measured core interval. Process time remains the primary metric "
-            "because the deadline includes those startup costs.\n\n"
-            "At $n=512$, CPLEX CP, CPLEX MIP, and Gurobi have median core times "
-            f"{med('scaling',512,'cplex_cp','total_time'):.3f}, "
-            f"{med('scaling',512,'cplex_mip','total_time'):.3f}, and "
-            f"{med('scaling',512,'gurobi','total_time'):.3f} s, respectively. "
-            "CPLEX CP is fastest for this core metric and also for process time "
-            "at this particular size, whereas Gurobi has the lowest aggregate "
-            "PAR-2 across the eight sizes. These are two different observations. "
-            "The small CP input model alone is insufficient to prove why its "
-            "engine performs well; solver preprocessing and search were not "
-            "isolated experimentally.\n")
-    (report / "exact_discussion.tex").write_text(text, encoding="utf-8")
+    for name in ENCODINGS:
+        for n in ns:
+            numbers[f"size/{name}/{n}/vars"] = f"{sizes[name][n][0]:,}"
+            numbers[f"size/{name}/{n}/clauses"] = f"{sizes[name][n][1]:,}"
+    update_numbers(report / "numbers.tex", numbers)
 
     import matplotlib
     matplotlib.use("Agg")

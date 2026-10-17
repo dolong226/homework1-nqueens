@@ -5,11 +5,11 @@
     16,
     32,
     64,
-    96,
-    128
+    128,
+    256
   ],
-  "repeats": 3,
-  "time_limit": 10.0,
+  "repeats": 1,
+  "time_limit": 180.0,
   "results": "results",
   "methods": [
     "sat:cadical195:pairwise:minimal",
@@ -24,7 +24,7 @@
     "sat:cadical195:seqcounter:extended"
   ],
   "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
-  "platform": "Windows-11-10.0.26200-SP0",
+  "platform": "Windows-11-10.0.26300-SP0",
   "cpu": "AMD64 Family 25 Model 117 Stepping 2, AuthenticAMD",
   "logical_cpus": 16,
   "packages": {

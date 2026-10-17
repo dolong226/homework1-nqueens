@@ -50,11 +50,11 @@ Chạy các lệnh từ thư mục repository:
 
 ```powershell
 python -m nqueens.run_one 8
-python -m nqueens.run_one 128 sat:cadical195:commander:minimal --time-limit 10
-python -m nqueens.run_one 64 cplex_cp --time-limit 10
-python -m nqueens.run_one 64 cplex_mip --time-limit 10
-python -m nqueens.run_one 64 gurobi --time-limit 10
-python -m nqueens.run_one 64 cpsat --time-limit 10
+python -m nqueens.run_one 128 sat:cadical195:commander:minimal --time-limit 60
+python -m nqueens.run_one 64 cplex_cp --time-limit 60
+python -m nqueens.run_one 64 cplex_mip --time-limit 60
+python -m nqueens.run_one 64 gurobi --time-limit 60
+python -m nqueens.run_one 64 cpsat --time-limit 60
 python -m nqueens.run_one 8 sat:cadical195:product:extended --dimacs queens.cnf
 ```
 
@@ -80,7 +80,11 @@ python -m nqueens.analyze
 python -m nqueens.report_details
 ```
 
-Chạy lại toàn bộ thực nghiệm (khoảng 372 lần chạy, tối đa vài chục phút):
+Số liệu trong `results/` là một lần chạy rút gọn (124 lần, giới hạn 180 s, 1 lần lặp:
+`python -m nqueens.benchmark --time-limit 180 --repeats 1`) trên máy dùng chung.
+
+Chạy lại toàn bộ thực nghiệm (372 lần chạy, giới hạn 600 s mỗi lần; có thể mất
+nhiều giờ vì các lần timeout chiếm trọn giới hạn):
 
 ```powershell
 .\reproduce.ps1                      # ghi vào results-new\ và results-new\report\
@@ -89,20 +93,28 @@ Chạy lại toàn bộ thực nghiệm (khoảng 372 lần chạy, tối đa v�
 
 `reproduce.ps1` không ghi đè `results/` và `report/` đã nộp.
 
-Các kích thước chính: 8, 16, 32, 64, 96, 128. Phần mở rộng so sánh đủ năm
-phương pháp ở 256 và 512. Cấu hình SAT đối chiếu là
-`sat:cadical195:commander:minimal`, chọn từ lượt khảo sát trước khi thu bộ số liệu cuối.
+| Thực nghiệm | Phương pháp | Kích thước n |
+|---|---|---|
+| `encodings` | CaDiCaL × 5 AMO × {minimal, extended} | 8, 16, 32, 64, 128, 256 |
+| `solvers` | CaDiCaL, Glucose, MiniSat, MapleChrono với commander/minimal | 8, 16, 32, 64, 128, 256 |
+| `exact` | SAT đối chiếu, CPLEX CP, CPLEX MIP, Gurobi, CP-SAT | 8, 16, 32, 64, 128, 256 |
+| `scaling` | như `exact` | 512, 1024 |
+
+Cấu hình SAT đối chiếu là `sat:cadical195:commander:minimal`.
+Giới hạn thời gian có thể đổi bằng `python -m nqueens.benchmark --time-limit 60`.
 
 Chạy tuần tự để các solver không tranh chấp CPU. Mỗi kích thước có 3 lần lặp;
 các phương pháp CP/MIP dùng seed 1, 2, 3, một luồng. SAT dùng tham số mặc định
 của backend và chạy lại trong tiến trình mới; các lần lặp chủ yếu đo biến động thời gian.
 Không dùng phá đối xứng hoặc nghiệm gợi ý cho bất kỳ solver nào.
 
+`nqueens.benchmark` ghi `source-sha256.json` (SHA-256 của các file mã đo đạc,
+chuẩn hóa xuống dòng LF) cạnh kết quả, để đối chiếu số liệu với đúng phiên bản mã.
+`nqueens.analyze` sinh bảng, hình, `summary.json` và `report/numbers.tex`
+(mọi con số trong báo cáo được lấy qua macro `\res{...}` từ file này).
 `nqueens.report_details` kiểm tra công thức đếm biến/mệnh đề theo cài đặt,
-sinh hình kích thước CNF, bảng tách thời gian dựng/giải và khoảng min–max
-từ ba lần lặp đã lưu. Lệnh này không chạy lại benchmark. Các CSV/JSONL,
-cấu hình và `results/source-sha256.json` của đợt thu số liệu được giữ nguyên;
-các phần phân tích/báo cáo và kiểm thử propagation được cập nhật sau đợt đó.
+sinh hình kích thước CNF và bảng tách thời gian dựng/giải. Hai lệnh này
+không chạy lại benchmark.
 
 CSV cho phép tiếp tục lần chạy bị gián đoạn nếu cấu hình khớp. Để thực nghiệm khác,
 dùng `--results results-new` (cho cả `nqueens.experiment` và `nqueens.benchmark`);
